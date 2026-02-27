@@ -1,9 +1,18 @@
-SAFE_ACTIONS = ["secure_ssh", "enable_firewall", "patch_system"]
+SAFE_ACTIONS = [
+    "secure_ssh",
+    "disable_root_ssh",
+    "enable_firewall",
+    "enable_fw_logging",
+    "patch_system",
+    "remove_insecure_services",
+    "fix_config_perms",
+]
 
 
-def filter_actions(actions):
+def filter_actions(recommendations):
     allowed = []
-    for a in actions:
-        if a["action"] in SAFE_ACTIONS:
-            allowed.append(a["action"])
+    for rec in recommendations:
+        action = rec.get("action")
+        if action in SAFE_ACTIONS:
+            allowed.append(action)
     return allowed
