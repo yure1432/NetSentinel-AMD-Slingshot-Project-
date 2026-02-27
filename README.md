@@ -52,19 +52,19 @@ To ensure safety during automated remediation, NetSentinel employs a strict Poli
 
 ### 2. Environment Setup
 
-export GEMINI_API_KEY='your_api_key_here'\
+export GEMINI_API_KEY='your_api_key_here'
 
-pip install google-genai paramiko\
+pip install google-genai paramiko
 
 ### 3. Compilation & Execution
 
-Compile the Java source and run the master pipeline:\
+Compile the Java source and run the master pipeline:
 
-javac src/\*.java -d out\
+javac src/\*.java -d out
 
-java -cp out Main <subnet-cidr>\
+java -cp out Main <subnet-cidr>
 
-python main.py\
+python main.py
 
 ---
 
