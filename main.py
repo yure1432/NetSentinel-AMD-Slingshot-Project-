@@ -1,50 +1,78 @@
 import json
+import logging
 import subprocess
+from typing import Dict, List, Optional
 
-from actions import ACTION_MAP
-from ai_module import analyze_server
-from collector import collect_state
-from policy import filter_actions
-from scorer import calculate_score
-
-SUBNET = "192.168.0.0/24"
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("NetSentinel")
 
 
-def run_java_scanner():
-    result = subprocess.run(
-        ["java", "-jar", "scanner.jar", SUBNET], capture_output=True, text=True
-    )
-    return json.loads(result.stdout)
+class SlingshotScanner:
+
+    def __init__(self, subnet: str, jar_path: str = "scanner.jar"):
+        self.subnet = subnet
+        self.jar_path = jar_path
+
+    def scan(self) -> List[Dict]:
+        logger.info(f"Starting network scan on {self.subnet}...")
+        try:
+            result = subprocess.run(
+                ["java", "-jar", self.jar_path, self.subnet],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            data = json.loads(result.stdout)
+            return data.get("hosts", [])
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Java Scanner failed: {e.stderr}")
+            return []
+        except json.JSONDecodeError:
+            logger.error("Failed to parse Scanner JSON output.")
+            return []
 
 
-def reinforce():
-    print("Running network scan...")
-    scan_data = run_java_scanner()
-    servers = [h["ip"] for h in scan_data["hosts"]]
+class ReinforcementEngine:
 
-    print("Collecting server states...")
-    states = {}
-    for ip in servers:
-        states[ip] = collect_state(ip)
+    def __init__(self, scanner: SlingshotScanner):
+        from actions import ActionExecutor
+        from ai_module import SecurityAnalyzer
+        from collector import SystemCollector
 
-    print("Analyzing with AI...")
-    ai_results = {}
-    for ip, state in states.items():
-        ai_results[ip] = analyze_server(state)
+        self.scanner = scanner
+        self.collector = SystemCollector()
+        self.analyzer = SecurityAnalyzer()
+        self.executor = ActionExecutor()
 
-    print("Applying reinforcement...")
-    for stage in ["secure_ssh", "enable_firewall", "patch_system"]:
-        print(f"\n=== STAGE: {stage} ===")
-        for ip in servers:
-            actions = ai_results[ip]
-            allowed = filter_actions(actions)
+    def run(self):
+        """Executes the full pipeline[cite: 86]."""
+        hosts = self.scanner.scan()
+        if not hosts:
+            logger.warning("No hosts found. Exiting.")
+            return
 
-            if stage in allowed:
-                ACTION_MAP[stage](ip)
+        for host in hosts:
+            ip = host["ip"]
+            logger.info(f"Processing {ip}...")
 
-    score = calculate_score(states)
-    print(f"\nFinal security score: {score}")
+            # State Collection [cite: 89]
+            state = self.collector.collect(ip)
+            if not state:
+                continue
+
+            # AI Analysis [cite: 90]
+            recommendations = self.analyzer.analyze(state)
+
+            # Execution [cite: 87, 88]
+            for rec in recommendations:
+                action = rec.get("action")
+                if action and action != "none":
+                    self.executor.apply(ip, action)
 
 
 if __name__ == "__main__":
-    reinforce()
+    SUBNET = "192.168.0.0/24"
+    engine = ReinforcementEngine(SlingshotScanner(SUBNET))
+    engine.run()
